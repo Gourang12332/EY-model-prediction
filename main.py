@@ -11,15 +11,14 @@ import os
 
 # ================= CONFIG =================
 
-GEMINI_API_KEY = "AIzaSyCKWdmgEPQHvVT5VDCWEz_te_efBeeN8-Q"
-MONGO_URI = "mongodb+srv://jmdayushkumar_db_user:6oe935cfRww7fQZP@cluster0.iii0dcr.mongodb.net/?appName=Cluster0"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")  # MUST set in env
+MONGO_URI = os.getenv("MONGO_URI")           # MUST set in env
 DB_NAME = "techathon_db"
 
 MODEL_NAME = "gemini-3-flash-preview"
 
 # ================= CLIENTS =================
 
-# Initialize Clients
 try:
     client = genai.Client(api_key=GEMINI_API_KEY)
     mongo_client = MongoClient(MONGO_URI)
@@ -29,18 +28,18 @@ try:
     print(f"Connected to DB: {db.name}")
 except Exception as e:
     print(f"Failed to initialize clients: {e}")
+    raise e
 
 # ================= FASTAPI SETUP =================
 
 app = FastAPI()
 
-# Manage CORS for all ports/origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ================= DATA MODELS =================
@@ -50,7 +49,7 @@ class VehicleRequest(BaseModel):
     vehicleId: str
     sensors: dict
 
-# ================= LLM PROMPT & LOGIC =================
+# ================= LLM PROMPT =================
 
 SYSTEM_PROMPT = """
 You are an AI vehicle diagnostic system.
@@ -86,74 +85,65 @@ You must respond ONLY in valid JSON in this exact schema:
 No explanations. No extra text.
 """
 
+# ================= LLM CALL =================
+
 def call_llm(sensors: dict):
     prompt = SYSTEM_PROMPT + "\n\nSensor Data:\n" + json.dumps(sensors)
 
     try:
         response = client.models.generate_content(
             model=MODEL_NAME,
-            contents=prompt
+            contents=[prompt]   # 🔥 MUST be list
         )
 
         text = response.text.strip()
 
-        # Clean markdown if Gemini wraps JSON
+        # Remove markdown if exists
         if text.startswith("```"):
             text = text.split("```")[1].strip()
-            # Handle specifically ```json ... ```
             if text.startswith("json"):
                 text = text[4:].strip()
 
         return json.loads(text)
 
     except Exception as e:
-        print(f"Error calling or parsing LLM: {e}")
-        # print("Raw response:", response) # Commented out to avoid unbound local error if response fails
-        return None
+        print("===== GEMINI ERROR =====")
+        print(e)
+        print("Raw Response:", getattr(response, "text", None))
+        raise e   # don't hide errors
+
+# ================= CORE LOGIC =================
 
 def process_vehicle_analysis(userId, vehicleId, sensors):
-    # Check if car exists
     car_doc = cars_db.find_one({
         "user_id": userId,
         "vehicle_id": vehicleId
     })
 
     if not car_doc:
-        # In a real app, you might want to create the car if it doesn't exist, 
-        # but adhering to your logic, we raise an error.
-        raise ValueError(f"Car not found for user_id: {userId}, vehicle_id: {vehicleId}")
+        raise ValueError("Car not found")
 
-    # Call LLM
     llm_output = call_llm(sensors)
-    if not llm_output:
-        raise ValueError("LLM output not generated properly {llm_output}")
 
-    # Update Car Document
     updated_car_doc = {
         "user_id": car_doc["user_id"],
         "vehicle_id": car_doc["vehicle_id"],
         "owner": car_doc.get("owner", "Unknown"),
         "model": car_doc.get("model", "Unknown"),
-        "status": llm_output.get("status", "Unknown"),
-        "isServiceNeeded": llm_output.get("isServiceNeeded", False),
-        "recommendedAction": llm_output.get("recommendedAction", "N/A"),
+        "status": llm_output.get("status"),
+        "isServiceNeeded": llm_output.get("isServiceNeeded"),
+        "recommendedAction": llm_output.get("recommendedAction"),
         "sensors": sensors,
-        "predictions": llm_output.get("predictions", []),
-        "summary": llm_output.get("summary", "")
+        "predictions": llm_output.get("predictions"),
+        "summary": llm_output.get("summary")
     }
-
-    # Helper to convert ObjectId to string for JSON serialization
-    def serialize_doc(doc):
-        doc["_id"] = str(doc["_id"])
-        return doc
 
     cars_db.update_one(
         {"_id": car_doc["_id"]},
         {"$set": updated_car_doc}
     )
 
-    # Insert Logs
-    for pred in llm_output.get("predictions", []):
+    for pred in llm_output["predictions"]:
         log = {
             "logId": str(uuid4()),
             "user_id": userId,
@@ -161,19 +151,20 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
             "timestamp": datetime.utcnow(),
             "logType": "ISSUE",
             "data": {
-                "component": pred.get("component"),
-                "issue": pred.get("issue"),
-                "severity": pred.get("severity"),
-                "prediction": pred.get("prediction"),
-                "recommendation": pred.get("recommendation"),
+                "component": pred["component"],
+                "issue": pred["issue"],
+                "severity": pred["severity"],
+                "prediction": pred["prediction"],
+                "recommendation": pred["recommendation"],
                 "modelVersion": MODEL_NAME
             }
         }
         logs_db.insert_one(log)
 
-    return serialize_doc(updated_car_doc)
+    updated_car_doc["_id"] = str(car_doc["_id"])
+    return updated_car_doc
 
-# ================= API ENDPOINTS =================
+# ================= API =================
 
 @app.get("/")
 def health_check():
@@ -182,21 +173,19 @@ def health_check():
 @app.post("/analyze")
 def analyze_vehicle_endpoint(payload: VehicleRequest):
     try:
-        result = process_vehicle_analysis(
-            payload.userId, 
-            payload.vehicleId, 
+        return process_vehicle_analysis(
+            payload.userId,
+            payload.vehicleId,
             payload.sensors
         )
-        return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        print(f"Server Error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        print("SERVER ERROR:", e)
+        raise HTTPException(status_code=500, detail="LLM Failure")
 
-# ================= RUNNER =================
+# ================= RUN =================
 
 if __name__ == "__main__":
-    # Railway will provide a PORT env var, default to 8000 locally
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
