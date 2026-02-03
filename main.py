@@ -126,7 +126,7 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
     # Call LLM
     llm_output = call_llm(sensors)
     if not llm_output:
-        raise ValueError("LLM output not generated properly")
+        raise ValueError("LLM output not generated properly {llm_output}")
 
     # Update Car Document
     updated_car_doc = {
