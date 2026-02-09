@@ -11,9 +11,10 @@ from uuid import uuid4
 import json
 import uvicorn
 import os
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MONGO_URI = os.getenv("MONGO_URI")
+GEMINI_API_KEY="AIzaSyAQcpsCFPrXqsvWeIsHT5l5TmLTC1eAI5E"
+MONGO_URI="mongodb+srv://jmdayushkumar_db_user:6oe935cfRww7fQZP@cluster0.iii0dcr.mongodb.net/?appName=Cluster0"
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "techathon_db"
 MODEL_NAME = "gemini-3-flash-preview"
 
@@ -21,6 +22,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DB_NAME]
 logs_db = db["logs"]
+cars_db = db["vehicles"]
 
 # ================= FASTAPI =================
 app = FastAPI()
@@ -209,7 +211,7 @@ def analyze_vehicle_endpoint(payload: VehicleRequest):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         print("SERVER ERROR:", e)
-        raise HTTPException(status_code=500, detail="{e}")
+        raise HTTPException(status_code=500, detail="LLM Failure")
 
 @app.get("/capa/{vehicle_id}")
 def generate_company_capa_from_vehicle(vehicle_id: str):
