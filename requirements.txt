@@ -3,3 +3,5 @@ uvicorn
 pymongo
 google-genai
 pydantic
+reportlab
+python-dotenv
