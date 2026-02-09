@@ -124,6 +124,7 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
         "predictions": llm_output.get("predictions"),
         "summary": llm_output.get("summary")
     }
+    print(llm_output.get("predictions"))
 
     cars_db.update_one(
         {"_id": car_doc["_id"]},
@@ -208,7 +209,7 @@ def analyze_vehicle_endpoint(payload: VehicleRequest):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         print("SERVER ERROR:", e)
-        raise HTTPException(status_code=500, detail="LLM Failure")
+        raise HTTPException(status_code=500, detail="{e}")
 
 @app.get("/capa/{vehicle_id}")
 def generate_company_capa_from_vehicle(vehicle_id: str):
