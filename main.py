@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from datetime import datetime
 from google import genai
 from uuid import uuid4
+import requests
 import json
 import uvicorn
 import os
@@ -15,6 +16,8 @@ GEMINI_API_KEY="AIzaSyAQcpsCFPrXqsvWeIsHT5l5TmLTC1eAI5E"
 MONGO_URI="mongodb+srv://jmdayushkumar_db_user:6oe935cfRww7fQZP@cluster0.iii0dcr.mongodb.net/?appName=Cluster0"
 # GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # MONGO_URI = os.getenv("MONGO_URI")
+DASHBOARD_API = "https://carapi-2goc.onrender.com/get-dashboard/"
+SERVICE_API = "http://127.0.0.1:8000/start-automated-service"
 DB_NAME = "techathon_db"
 MODEL_NAME = "gemini-3-flash-preview"
 
@@ -102,6 +105,20 @@ def call_llm(prompt):
     return json.loads(text)
 
 # ================= CORE =================
+def trigger_automated_service(userId, vehicleId, pred):
+    dashboard_res = requests.get(f"{DASHBOARD_API}{userId}")
+    dashboard_data = dashboard_res.json()
+
+    phone = dashboard_data["user_profile"]["phone"]
+
+    payload = {
+        "number": phone,
+        "vehicleId": vehicleId,
+        "issue": pred["issue"]
+    }
+
+    requests.post(SERVICE_API, json=payload)
+
 def process_vehicle_analysis(userId, vehicleId, sensors):
     car_doc = cars_db.find_one({
         "user_id": userId,
@@ -113,7 +130,6 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
 
     llm_output = call_llm(SYSTEM_PROMPT + json.dumps(sensors))
 
-    # DO NOT TOUCH THIS BLOCK (as per your requirement)
     updated_car_doc = {
         "user_id": car_doc["user_id"],
         "vehicle_id": car_doc["vehicle_id"],
@@ -126,14 +142,12 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
         "predictions": llm_output.get("predictions"),
         "summary": llm_output.get("summary")
     }
-    print(llm_output.get("predictions"))
 
     cars_db.update_one(
         {"_id": car_doc["_id"]},
         {"$set": updated_car_doc}
     )
 
-    # Logs use DIFFERENT schema (event system)
     for pred in llm_output["predictions"]:
         logs_db.insert_one({
             "logId": str(uuid4()),
@@ -143,6 +157,12 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
             "logType": "ISSUE",
             "data": pred
         })
+
+        severity = pred.get("severity")
+        certainty = pred.get("prediction", {}).get("certainty", 0)
+
+        if severity == "HIGH" or certainty > 0.85:
+            trigger_automated_service(userId, vehicleId, pred)
 
     updated_car_doc["_id"] = str(car_doc["_id"])
     return updated_car_doc
