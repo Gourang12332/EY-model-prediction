@@ -12,11 +12,12 @@ import requests
 import json
 import uvicorn
 import os
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MONGO_URI = os.getenv("MONGO_URI")
+GEMINI_API_KEY="AIzaSyCVYCKfbvbglViiVd7c11LR91OrlPbQOyw"
+MONGO_URI="mongodb+srv://jmdayushkumar_db_user:6oe935cfRww7fQZP@cluster0.iii0dcr.mongodb.net/?appName=Cluster0"
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# MONGO_URI = os.getenv("MONGO_URI")
 DASHBOARD_API = "https://carapi-2goc.onrender.com/get-dashboard/"
-SERVICE_API = "http://127.0.0.1:8000/start-automated-service"
+SERVICE_API = "https://ey-model-prediction-1.onrender.com/start-automated-service"
 DB_NAME = "techathon_db"
 MODEL_NAME = "gemini-3-flash-preview"
 
