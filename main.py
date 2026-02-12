@@ -175,9 +175,10 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
         return
 
     avg_certainty = total_certainty / len(predictions)
-    THRESHOLD = 0.85
+    THRESHOLD = 0.65
 
     if avg_certainty > THRESHOLD and top_issue:
+        print("Triggered Calling")
         trigger_automated_service(userId, vehicleId, top_issue)
         
     updated_car_doc["_id"] = str(car_doc["_id"])
@@ -189,6 +190,7 @@ def get_company_from_vehicle(vehicle_id: str):
 
 def generate_capa_with_llm(logs: list, company: str):
     prompt = CAPA_PROMPT + "\nCompany: " + company + "\nLogs:\n" + json.dumps(logs)
+    print("capa generated")
     return call_llm(prompt)
 
 # ================= PDF =================
@@ -252,40 +254,46 @@ def analyze_vehicle_endpoint(payload: VehicleRequest):
 
 @app.get("/capa/{vehicle_id}")
 def generate_company_capa_from_vehicle(vehicle_id: str):
-    company = get_company_from_vehicle(vehicle_id)
-    regex = f"{company}_"
-    print(regex)
+    try:
+        company = get_company_from_vehicle(vehicle_id)
+        regex = f"{company}_"
+        print("Regex:", regex)
 
-    # IMPORTANT: logs schema uses vehicleId
-    issue_logs = list(logs_db.find({
-        "vehicle_id": {"$regex": regex},
-        "logType": "ISSUE"
-    }))
+        issue_logs = list(logs_db.find({
+            "vehicleId": {"$regex": regex},
+            "logType": "ISSUE"
+        }))
 
-    if not issue_logs:
-        raise HTTPException(404, "No ISSUE logs found for this company")
+        print("Logs count:", len(issue_logs))
 
-    # Clean logs before sending to LLM
-    clean_logs = [
-        {
-            "component": log["data"]["component"],
-            "issue": log["data"]["issue"],
-            "severity": log["data"]["severity"],
-            "prediction": log["data"]["prediction"],
-            "recommendation": log["data"]["recommendation"]
-        }
-        for log in issue_logs
-    ]
+        if not issue_logs:
+            raise HTTPException(404, "No ISSUE logs found for this company")
 
-    capa_json = generate_capa_with_llm(clean_logs, company)
-    pdf_path = create_capa_pdf_from_llm(capa_json)
+        clean_logs = [
+            {
+                "component": log["data"]["component"],
+                "issue": log["data"]["issue"],
+                "severity": log["data"]["severity"],
+                "prediction": log["data"]["prediction"],
+                "recommendation": log["data"]["recommendation"]
+            }
+            for log in issue_logs
+        ]
 
-    return FileResponse(
-        pdf_path,
-        filename=f"{company}_GLOBAL_CAPA.pdf",
-        media_type="application/pdf"
-    )
+        capa_json = generate_capa_with_llm(clean_logs, company)
+        pdf_path = create_capa_pdf_from_llm(capa_json)
 
+        print("PDF path:", pdf_path)
+
+        return FileResponse(
+            pdf_path,
+            filename=f"{company}_GLOBAL_CAPA.pdf",
+            media_type="application/pdf"
+        )
+
+    except Exception as e:
+        print("CAPA ERROR:", str(e))
+        raise HTTPException(500, str(e))
 # ================= RUN =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
