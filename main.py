@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
-
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 DASHBOARD_API = "https://carapi-2goc.onrender.com/get-dashboard/"
@@ -131,6 +130,7 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
         raise ValueError("Car not found")
 
     llm_output = call_llm(SYSTEM_PROMPT + json.dumps(sensors))
+    predictions = llm_output.get("predictions", [])
 
     updated_car_doc = {
         "user_id": car_doc["user_id"],
@@ -141,7 +141,7 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
         "isServiceNeeded": llm_output.get("isServiceNeeded"),
         "recommendedAction": llm_output.get("recommendedAction"),
         "sensors": sensors,
-        "predictions": llm_output.get("predictions"),
+        "predictions": predictions,
         "summary": llm_output.get("summary")
     }
 
@@ -150,7 +150,11 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
         {"$set": updated_car_doc}
     )
 
-    for pred in llm_output["predictions"]:
+    total_certainty = 0
+    max_certainty = 0
+    top_issue = None
+
+    for pred in predictions:
         logs_db.insert_one({
             "logId": str(uuid4()),
             "userId": userId,
@@ -160,15 +164,26 @@ def process_vehicle_analysis(userId, vehicleId, sensors):
             "data": pred
         })
 
-        severity = pred.get("severity")
         certainty = pred.get("prediction", {}).get("certainty", 0)
+        total_certainty += certainty
 
-        if severity == "HIGH" or certainty > 0.85:
-            trigger_automated_service(userId, vehicleId, pred)
+        if certainty > max_certainty:
+            max_certainty = certainty
+            top_issue = pred
 
+    if not predictions:
+        return
+
+    avg_certainty = total_certainty / len(predictions)
+    THRESHOLD = 0.85
+
+    if avg_certainty > THRESHOLD and top_issue:
+        trigger_automated_service(userId, vehicleId, top_issue)
+        
     updated_car_doc["_id"] = str(car_doc["_id"])
     return updated_car_doc
 
+##########################=========================================###########################################
 def get_company_from_vehicle(vehicle_id: str):
     return vehicle_id.split("_")[0]
 
