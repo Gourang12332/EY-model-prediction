@@ -12,6 +12,7 @@ import tempfile
 import requests
 import json
 import uvicorn
+from textwrap import wrap
 from dotenv import load_dotenv
 load_dotenv()
 import os
@@ -196,40 +197,57 @@ def generate_capa_with_llm(logs: list, company: str):
 
 # ================= PDF =================
 def create_capa_pdf_from_llm(capa_data: dict):
-    tmp_dir = tempfile.gettempdir()   # -> /tmp on Render/Vercel
+    tmp_dir = tempfile.gettempdir()
     filename = f"{tmp_dir}/CAPA_{capa_data['company']}.pdf"
 
     c = canvas.Canvas(filename, pagesize=A4)
-    x, y = 50, 800
+    width, height = A4
+    x, y = 50, height - 50
+    max_width = 90  # characters per line (controls wrapping)
 
-    def draw(title, items):
+    def draw_block(title, items):
         nonlocal y
         c.setFont("Helvetica-Bold", 12)
         c.drawString(x, y, title)
         y -= 20
+
         c.setFont("Helvetica", 10)
-        for i in items:
-            c.drawString(x + 10, y, f"- {i}")
-            y -= 15
+        for item in items:
+            wrapped = wrap(item, max_width)
+            for line in wrapped:
+                c.drawString(x + 15, y, f"- {line}")
+                y -= 14
+            y -= 6  # extra spacing between bullets
+        y -= 10
 
     c.setFont("Helvetica-Bold", 16)
     c.drawString(x, y, "CAPA REPORT")
     y -= 30
+    c.setFont("Helvetica", 11)
     c.drawString(x, y, f"Company: {capa_data['company']}")
     y -= 40
 
-    draw("Root Causes", capa_data["root_causes"])
-    draw("Corrective Actions", capa_data["corrective_actions"])
-    draw("Preventive Actions", capa_data["preventive_actions"])
+    draw_block("Root Causes", capa_data["root_causes"])
+    draw_block("Corrective Actions", capa_data["corrective_actions"])
+    draw_block("Preventive Actions", capa_data["preventive_actions"])
 
+    # Risk Assessment
+    c.setFont("Helvetica-Bold", 12)
     c.drawString(x, y, "Risk Assessment:")
     y -= 20
-    c.drawString(x + 10, y, capa_data["risk_assessment"])
+    c.setFont("Helvetica", 10)
+    for line in wrap(capa_data["risk_assessment"], max_width):
+        c.drawString(x + 15, y, line)
+        y -= 14
 
-    y -= 40
+    y -= 30
+    c.setFont("Helvetica-Bold", 12)
     c.drawString(x, y, "Summary:")
     y -= 20
-    c.drawString(x + 10, y, capa_data["summary"])
+    c.setFont("Helvetica", 10)
+    for line in wrap(capa_data["summary"], max_width):
+        c.drawString(x + 15, y, line)
+        y -= 14
 
     c.save()
     return filename
