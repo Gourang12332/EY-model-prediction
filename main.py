@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from datetime import datetime
 from google import genai
 from uuid import uuid4
+import tempfile
 import requests
 import json
 import uvicorn
@@ -195,8 +196,8 @@ def generate_capa_with_llm(logs: list, company: str):
 
 # ================= PDF =================
 def create_capa_pdf_from_llm(capa_data: dict):
-    os.makedirs("/mnt/data", exist_ok=True)
-    filename = f"/mnt/data/CAPA_{capa_data['company']}.pdf"
+    tmp_dir = tempfile.gettempdir()   # -> /tmp on Render/Vercel
+    filename = f"{tmp_dir}/CAPA_{capa_data['company']}.pdf"
 
     c = canvas.Canvas(filename, pagesize=A4)
     x, y = 50, 800
