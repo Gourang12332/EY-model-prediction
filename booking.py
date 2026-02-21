@@ -83,6 +83,14 @@ async def process_voice_workflow(number: str, vehicle_id: str, issue : str):
         except Exception as e:
             print(f"Error in background workflow: {e}")
 
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "service": "automated-service",
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
 @app.post("/start-automated-service")
 async def start_service(request: CallRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(
