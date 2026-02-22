@@ -20,7 +20,7 @@ async def process_voice_workflow(number: str, vehicle_id: str, issue : str):
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             # 1. Call user
-            call_resp = await client.post(CALLING_API, json={"number": number})
+            call_resp = await client.post(CALLING_API, json={"number": number,"issue" : issue})
             if call_resp.status_code != 200:
                 print("Call failed")
                 return
