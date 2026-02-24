@@ -20,12 +20,12 @@ app.add_middleware(
 LOGS_API = "https://booking-and-log-service-ey.onrender.com/logs"
 
 SERVICES = {
-    "Messaging_API": "https://eymessaging.onrender.com/health",
+    "Messaging_API": "https://eymessaging.onrender.com/",
     "Admin_API": "https://admin-ey-1.onrender.com/",
     "Car_API": "https://carapi-2goc.onrender.com/docs", # adding vehicles and users
     "Vendor_API": "https://eyvendor.onrender.com/health",
     "Model_API": "https://ey-model-prediction.onrender.com/",
-    "Booking_API": "https://booking-and-log-service-ey.onrender.com/health",
+    "Booking_API": "https://booking-and-log-service-ey.onrender.com/system-status",
     "Calling_API": "https://calling-agent-ey.onrender.com/health"
 }
 
