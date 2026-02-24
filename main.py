@@ -27,7 +27,7 @@ MODEL_NAME = "gemini-3-flash-preview"
 client = genai.Client(api_key=GEMINI_API_KEY)
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DB_NAME]
-logs_db = db["logs"]
+logs_db = db["Logs"]
 cars_db = db["vehicles"]
 
 # ================= FASTAPI =================
