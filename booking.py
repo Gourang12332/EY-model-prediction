@@ -6,7 +6,7 @@ import uuid
 
 app = FastAPI()
 
-CALLING_API = "https://calling-agent-ey-1.onrender.com/make-call"
+CALLING_API = "https://calling-agent-ey.onrender.com/make-call"
 BOOKING_API = "https://booking-and-log-service-ey.onrender.com/book-service"
 SERVICE_CENTER_API = "https://admin-ey-1.onrender.com/get-all-centers"
 MESSAGING_API = "https://your-messaging-api.com/send-and-get-reply"  
@@ -30,7 +30,7 @@ async def process_voice_workflow(number: str, vehicle_id: str, issue : str):
                 print("Call not successful")
                 return
 
-            user_response = data.get("user_response", "").lower().strip()
+            user_response = data.get("user_choice", "").lower().strip()
             if not user_response:
                 print("Empty user response")
                 return
