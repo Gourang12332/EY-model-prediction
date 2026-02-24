@@ -26,7 +26,7 @@ SERVICES = {
     "Vendor_API": "https://eyvendor.onrender.com/health",
     "Model_API": "https://ey-model-prediction.onrender.com/",
     "Booking_API": "https://booking-and-log-service-ey.onrender.com/system-status",
-    "Calling_API": "https://calling-agent-ey.onrender.com/health"
+    "Calling_API": "https://markus-polysynthetic-reena.ngrok-free.dev/make-call/health"
 }
 
 FETCH_INTERVAL = 60
