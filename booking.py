@@ -6,7 +6,7 @@ import uuid
 
 app = FastAPI()
 
-CALLING_API = "https://markus-polysynthetic-reena.ngrok-free.dev/make-call"
+CALLING_API = "https://calling-agent-ey.onrender.com/make-call"
 BOOKING_API = "https://booking-and-log-service-ey.onrender.com/book-service"
 SERVICE_CENTER_API = "https://admin-ey-1.onrender.com/get-all-centers"
 MESSAGING_API = "https://your-messaging-api.com/send-and-get-reply"  
